@@ -1,0 +1,91 @@
+volumes:
+  spire-server-data:
+  kafka-data:
+
+services:
+  spire-server:
+    image: ghcr.io/spiffe/spire-server:1.12.0
+    container_name: spire-server
+    hostname: spire-server
+    ports:
+      - "31524:8081"        # SPIRE server debug / entry API
+    volumes:
+      - ./spire/server:/opt/spire/conf/server
+      - ./spire/data/server:/opt/spire/data/server
+    command: ["-config", "/opt/spire/conf/server/server.conf"]
+
+  spire-agent:
+    image: ghcr.io/spiffe/spire-agent:1.12.0
+    container_name: spire-agent
+    hostname: spire-agent
+    depends_on:
+      - spire-server
+    pid: "host"
+    volumes:
+      - ./spire/agent:/opt/spire/conf/agent
+      - ./spire/agent/run/:/var/run/
+    command: ["-config", "/opt/spire/conf/agent/agent.conf", "-joinToken", "${JOIN_TOKEN}"]
+
+  spiffe-helper-kafka:
+    image: ghcr.io/spiffe/spiffe-helper:0.8.0
+    container_name: spiffe-helper-kafka
+    hostname: spiffe-helper-kafka
+    depends_on:
+      - spire-agent
+    volumes:
+      - ./spire/helper/kafka-helper.conf:/opt/spire/conf/helper.conf
+      - ./spire/agent/run/:/var/run/
+      - ./kafka/secrets:/secrets
+    command: ["-config", "/opt/spire/conf/helper.conf"]
+
+  kafka:
+    image: confluentinc/cp-server:8.1.2
+    container_name: kafka
+    hostname: kafka
+    depends_on:
+      - spiffe-helper-kafka
+    ports:
+      - "9092:9092"        # TLS client listener
+      - "9093:9093"        # controller listener
+    volumes:
+      - ./kafka-data:/var/lib/kafka/data
+      - ./kafka/secrets:/etc/kafka/secrets:ro
+    environment:
+      # KRaft basics
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "BROKER"
+      KAFKA_LISTENERS: "BROKER://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093"
+      KAFKA_ADVERTISED_LISTENERS: "BROKER://kafka:9092"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "BROKER:SSL,CONTROLLER:PLAINTEXT"
+
+      # Do NOT set KAFKA_SECURITY_INTER_BROKER_PROTOCOL at all
+
+      # KRaft storage ID (static, ok for dev)
+      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
+
+      # SSL via PKCS12 keystore/truststore (from SPIFFE SVID)
+      KAFKA_SSL_KEYSTORE_TYPE: "PKCS12"
+      KAFKA_SSL_KEYSTORE_LOCATION: "/etc/kafka/secrets/kafka-keystore.p12"
+      KAFKA_SSL_KEYSTORE_PASSWORD: "changeit"
+      KAFKA_SSL_KEY_PASSWORD: "changeit"
+
+      KAFKA_SSL_TRUSTSTORE_TYPE: "PKCS12"
+      KAFKA_SSL_TRUSTSTORE_LOCATION: "/etc/kafka/secrets/kafka-truststore.p12"
+      KAFKA_SSL_TRUSTSTORE_PASSWORD: "changeit"
+
+      KAFKA_CONFLUENT_SSL_KEYSTORE_TYPE: "PKCS12"
+      KAFKA_CONFLUENT_SSL_KEYSTORE_LOCATION: "/etc/kafka/secrets/kafka-keystore.p12"
+      KAFKA_CONFLUENT_SSL_KEYSTORE_PASSWORD: "changeit"
+      KAFKA_CONFLUENT_SSL_KEY_PASSWORD: "changeit"
+
+      KAFKA_CONFLUENT_SSL_TRUSTSTORE_TYPE: "PKCS12"
+      KAFKA_CONFLUENT_SSL_TRUSTSTORE_LOCATION: "/etc/kafka/secrets/kafka-truststore.p12"
+      KAFKA_CONFLUENT_SSL_TRUSTSTORE_PASSWORD: "changeit"
+
+      KAFKA_LISTENER_NAME_BROKER_SSL_CLIENT_AUTH: "required"
+
+      # Disable hostname verification (SPIFFE URI SAN, no DNS "kafka")
+      KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: "https"
