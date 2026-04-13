@@ -13,6 +13,7 @@ cd confluent-platform-spiffe-spire
 mkdir spire/data
 mkdir spire/agent/run
 mkdir kafka-data
+mkdir kafka
 mkdir kafka/secrets
 ```
 
