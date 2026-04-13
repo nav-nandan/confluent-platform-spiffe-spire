@@ -1,5 +1,5 @@
 # confluent-platform-spiffe-spire
-Using SPIRE for Confluent Platform Auth
+Using SPIRE for Confluent Platform Auth. Well, not entirely. This example uses a SPIRE Server to issue and rotate X.509 cert bundle for mTLS. SPIRE Agent and SPIFFE helper fetch the cert chain .pem and extract CA, key and certs to be imported into a PKCS12 format keystore and truststore to be used by Kafka Broker and Clients for mTLS. The cert verification and hostname validation in this case is still carried out by the CP server SSL Context Engine and not delegated to the SPIRE Server.
 
 ## Steps to setup
 ## 1. Clone repo and set as working directory
