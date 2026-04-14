@@ -1,0 +1,6 @@
+.env
+kafka
+kafka-data
+spire/agent/bootstrap.crt
+spire/data
+spire/agent/run
