@@ -39,7 +39,7 @@ services:
     command: ["-config", "/opt/spire/conf/helper.conf"]
 
   kafka:
-    image: confluentinc/cp-server:8.1.2
+    image: justinrlee/cp-server:8.1.2-spire-0.0.3
     container_name: kafka
     hostname: kafka
     depends_on:
@@ -59,7 +59,8 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: "BROKER"
       KAFKA_LISTENERS: "BROKER://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093"
       KAFKA_ADVERTISED_LISTENERS: "BROKER://kafka:9092"
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "BROKER:SSL,CONTROLLER:PLAINTEXT"
+      # Enable SSL for both broker and controller listener
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "BROKER:SSL,CONTROLLER:SSL"
 
       # Do NOT set KAFKA_SECURITY_INTER_BROKER_PROTOCOL at all
 
@@ -71,6 +72,9 @@ services:
       KAFKA_SSL_KEYSTORE_LOCATION: "/etc/kafka/secrets/kafka-keystore.p12"
       KAFKA_SSL_KEYSTORE_PASSWORD: "changeit"
       KAFKA_SSL_KEY_PASSWORD: "changeit"
+      KAFKA_SSL_KEYSTORE_FILENAME: "kafka-keystore.p12"
+      KAFKA_SSL_KEY_CREDENTIALS: "creds"
+      KAFKA_SSL_KEYSTORE_CREDENTIALS: "creds"
 
       KAFKA_SSL_TRUSTSTORE_TYPE: "PKCS12"
       KAFKA_SSL_TRUSTSTORE_LOCATION: "/etc/kafka/secrets/kafka-truststore.p12"
@@ -87,5 +91,38 @@ services:
 
       KAFKA_LISTENER_NAME_BROKER_SSL_CLIENT_AUTH: "required"
 
+      # When brokers and controllers connect to each other, use mTLS, which includes spire-enabled certs
+      KAFKA_LISTENER_NAME_BROKER_SSL_TRUSTSTORE_TYPE: "PKCS12"
+      KAFKA_LISTENER_NAME_BROKER_SSL_TRUSTSTORE_LOCATION: "/etc/kafka/secrets/kafka-truststore.p12"
+      KAFKA_LISTENER_NAME_BROKER_SSL_TRUSTSTORE_PASSWORD: "changeit"
+
+      KAFKA_LISTENER_NAME_BROKER_SSL_KEYSTORE_TYPE: "PKCS12"
+      KAFKA_LISTENER_NAME_BROKER_SSL_KEYSTORE_LOCATION: "/etc/kafka/secrets/kafka-keystore.p12"
+      KAFKA_LISTENER_NAME_BROKER_SSL_KEYSTORE_PASSWORD: "changeit"
+      KAFKA_LISTENER_NAME_BROKER_SSL_KEY_PASSWORD: "changeit"
+
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_CLIENT_AUTH: "required"
+
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_TRUSTSTORE_TYPE: "PKCS12"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_TRUSTSTORE_LOCATION: "/etc/kafka/secrets/kafka-truststore.p12"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_TRUSTSTORE_PASSWORD: "changeit"
+
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_KEYSTORE_TYPE: "PKCS12"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_KEYSTORE_LOCATION: "/etc/kafka/secrets/kafka-keystore.p12"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_KEYSTORE_PASSWORD: "changeit"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_KEY_PASSWORD: "changeit"
+
       # Disable hostname verification (SPIFFE URI SAN, no DNS "kafka")
       KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: "https"
+
+      KAFKA_REPLICATION_FACTOR: "1"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+
+      KAFKA_CONFLUENT_BALANCER_ENABLE: "false"
+      KAFKA_PRINCIPAL_BUILDER_CLASS: "com.yourcompany.spire.SpirePrincipalBuilder"
+
+      KAFKA_SUPER_USERS: "User:spiffe://confluent.io/kafka"
+
+      KAFKA_AUTHORIZER_CLASS_NAME: "org.apache.kafka.metadata.authorizer.StandardAuthorizer"
+
