@@ -88,6 +88,8 @@ ls -l kafka/secrets
 ```
 cd kafka/secrets
 
+echo 'changeit' > creds
+
 # Build PKCS12 keystore: key + cert + bundle
 openssl pkcs12 -export \
   -inkey kafka-key.pem \
