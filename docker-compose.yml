@@ -39,7 +39,7 @@ services:
     command: ["-config", "/opt/spire/conf/helper.conf"]
 
   kafka:
-    image: justinrlee/cp-server:8.1.2-spire-0.0.3
+    image: confluentinc/cp-server:8.1.2
     container_name: kafka
     hostname: kafka
     depends_on:
@@ -50,6 +50,7 @@ services:
     volumes:
       - ./kafka-data:/var/lib/kafka/data
       - ./kafka/secrets:/etc/kafka/secrets:ro
+      - ./spire-principal-builder/target/spire-kafka-auth-1.0.0-SNAPSHOT.jar:/usr/share/java/kafka/spire-kafka-auth-1.0.0-SNAPSHOT.jar
     environment:
       # KRaft basics
       KAFKA_NODE_ID: 1
@@ -126,3 +127,4 @@ services:
 
       KAFKA_AUTHORIZER_CLASS_NAME: "org.apache.kafka.metadata.authorizer.StandardAuthorizer"
 
+      KAFKA_CONFLUENT_LICENSE: "<use-a-confluent-license-key>"
