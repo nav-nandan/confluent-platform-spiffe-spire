@@ -15,7 +15,7 @@ ls
 client-ssl.properties	config			docker-compose.yml	kafka-data		scripts			shared-secrets
 ```
 
-## 3. Start up Vault and check logs if service is healthy and ready to issue X.509 certificates
+## 3. Start up Vault and check logs if service is healthy and ready to issue certificates
 ```
 docker compose up -d vault-server
 docker compose logs -f vault-server
