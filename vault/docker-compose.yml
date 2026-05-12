@@ -1,0 +1,123 @@
+volumes:
+  kafka-data:
+
+services:
+  vault-server:
+    image: hashicorp/vault:latest
+    container_name: vault-server
+    hostname: vault-server
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: "root"
+      VAULT_ADDR: "http://0.0.0.0:8200"
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - ./scripts:/scripts
+    entrypoint: >
+      sh -c "vault server -dev -dev-root-token-id=root -dev-listen-address=0.0.0.0:8200 & 
+             sleep 5; 
+             /scripts/vault-init.sh; 
+             wait"
+
+  vault-agent:
+    image: hashicorp/vault:latest
+    container_name: vault-agent
+    user: root
+    hostname: vault-agent
+    depends_on:
+      - vault-server
+    environment:
+      VAULT_ADDR: "http://vault-server:8200"
+      SKIP_SETCAP: true
+    volumes:
+      - ./config:/config
+      - ./scripts:/scripts
+      - ./shared-secrets:/secrets
+    command: >
+      sh -c "apk add --no-cache openssl openjdk17-jre-headless && 
+             sleep 2 && 
+             chown -R 100:100 /secrets && 
+             vault agent -config=/config/vault-agent-config.hcl"
+
+  kafka:
+    image: confluentinc/cp-server:8.1.2
+    container_name: kafka
+    hostname: kafka
+    depends_on:
+      - vault-agent
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    volumes:
+      - ./kafka-data:/var/lib/kafka/data
+      - ./shared-secrets:/etc/kafka/secrets
+      - ./spire-principal-builder/target/spire-kafka-auth-1.0.0-SNAPSHOT.jar:/usr/share/java/kafka/spire-kafka-auth-1.0.0-SNAPSHOT.jar
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "BROKER"
+      KAFKA_LISTENERS: "BROKER://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093"
+      KAFKA_ADVERTISED_LISTENERS: "BROKER://kafka:9092"
+
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "BROKER:SSL,CONTROLLER:SSL"
+
+      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
+
+      # SSL via PKCS12 keystore/truststore (from SPIFFE SVID)
+      KAFKA_SSL_KEYSTORE_TYPE: "PKCS12"
+      KAFKA_SSL_KEYSTORE_LOCATION: "/etc/kafka/secrets/kafka-keystore.p12"
+      KAFKA_SSL_KEYSTORE_PASSWORD: "changeit"
+      KAFKA_SSL_KEY_PASSWORD: "changeit"
+      KAFKA_SSL_KEYSTORE_FILENAME: "kafka-keystore.p12"
+      KAFKA_SSL_KEY_CREDENTIALS: "creds"
+      KAFKA_SSL_KEYSTORE_CREDENTIALS: "creds"
+      KAFKA_SSL_TRUSTSTORE_TYPE: "PKCS12"
+      KAFKA_SSL_TRUSTSTORE_LOCATION: "/etc/kafka/secrets/kafka-truststore.p12"
+      KAFKA_SSL_TRUSTSTORE_PASSWORD: "changeit"
+
+      KAFKA_CONFLUENT_SSL_KEYSTORE_TYPE: "PKCS12"
+      KAFKA_CONFLUENT_SSL_KEYSTORE_LOCATION: "/etc/kafka/secrets/kafka-keystore.p12"
+      KAFKA_CONFLUENT_SSL_KEYSTORE_PASSWORD: "changeit"
+      KAFKA_CONFLUENT_SSL_KEY_PASSWORD: "changeit"
+      KAFKA_CONFLUENT_SSL_TRUSTSTORE_TYPE: "PKCS12"
+      KAFKA_CONFLUENT_SSL_TRUSTSTORE_LOCATION: "/etc/kafka/secrets/kafka-truststore.p12"
+      KAFKA_CONFLUENT_SSL_TRUSTSTORE_PASSWORD: "changeit"
+
+      KAFKA_LISTENER_NAME_BROKER_SSL_CLIENT_AUTH: "required"
+
+      # When brokers and controllers connect to each other, use mTLS, which includes vault-enabled certs
+      KAFKA_LISTENER_NAME_BROKER_SSL_TRUSTSTORE_TYPE: "PKCS12"
+      KAFKA_LISTENER_NAME_BROKER_SSL_TRUSTSTORE_LOCATION: "/etc/kafka/secrets/kafka-truststore.p12"
+      KAFKA_LISTENER_NAME_BROKER_SSL_TRUSTSTORE_PASSWORD: "changeit"
+      KAFKA_LISTENER_NAME_BROKER_SSL_KEYSTORE_TYPE: "PKCS12"
+      KAFKA_LISTENER_NAME_BROKER_SSL_KEYSTORE_LOCATION: "/etc/kafka/secrets/kafka-keystore.p12"
+      KAFKA_LISTENER_NAME_BROKER_SSL_KEYSTORE_PASSWORD: "changeit"
+      KAFKA_LISTENER_NAME_BROKER_SSL_KEY_PASSWORD: "changeit"
+
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_CLIENT_AUTH: "required"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_TRUSTSTORE_TYPE: "PKCS12"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_TRUSTSTORE_LOCATION: "/etc/kafka/secrets/kafka-truststore.p12"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_TRUSTSTORE_PASSWORD: "changeit"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_KEYSTORE_TYPE: "PKCS12"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_KEYSTORE_LOCATION: "/etc/kafka/secrets/kafka-keystore.p12"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_KEYSTORE_PASSWORD: "changeit"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_KEY_PASSWORD: "changeit"
+
+      KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: "https"
+
+      KAFKA_REPLICATION_FACTOR: "1"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_CONFLUENT_BALANCER_ENABLE: "false"
+
+      KAFKA_PRINCIPAL_BUILDER_CLASS: "com.yourcompany.spire.SpirePrincipalBuilder"
+
+      KAFKA_SUPER_USERS: "User:spiffe://confluent.io/kafka"
+
+      KAFKA_AUTHORIZER_CLASS_NAME: "org.apache.kafka.metadata.authorizer.StandardAuthorizer"
+
+      KAFKA_CONFLUENT_LICENSE: "<use-a-confluent-license-key>"
