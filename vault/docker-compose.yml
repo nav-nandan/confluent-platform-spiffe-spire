@@ -53,7 +53,7 @@ services:
     volumes:
       - ./kafka-data:/var/lib/kafka/data
       - ./shared-secrets:/etc/kafka/secrets
-      - ./spire-principal-builder/target/spire-kafka-auth-1.0.0-SNAPSHOT.jar:/usr/share/java/kafka/spire-kafka-auth-1.0.0-SNAPSHOT.jar
+      - ./../spire-principal-builder/target/spire-kafka-auth-1.0.0-SNAPSHOT.jar:/usr/share/java/kafka/spire-kafka-auth-1.0.0-SNAPSHOT.jar
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: "broker,controller"
