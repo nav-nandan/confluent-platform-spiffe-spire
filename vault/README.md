@@ -1,4 +1,4 @@
-# confluent-platform-spiffe-spire
+# confluent-platform-spiffe-vault
 Using Vault for Confluent Platform Auth. This example uses Vault to **issue** and **renew/rotate** X.509 certs for mTLS. Vault Agent runs as a side-car and fetches the key and certs from the Vault PKI Secrets Engine to be imported into a PKCS12 format keystore and truststore to be used by Kafka Broker and Clients for mTLS. The **cert verification** and **hostname validation** in this case is still carried out by the CP server SSL Context Engine and not delegated to Vault.
 
 ## Steps to setup
