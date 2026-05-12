@@ -4,7 +4,7 @@ Using SPIRE for Confluent Platform Auth. Well, not entirely. This example uses a
 ## Steps to setup
 ## 1. Clone repo and set as working directory
 ```
-git clone https://github.com/nav-nandan/confluent-platform-spiffe-spire.git
+git clone https://github.com/nav-nandan/confluent-platform-spiffe.git
 cd confluent-platform-spiffe-spire
 ```
 
